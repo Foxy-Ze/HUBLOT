@@ -7,44 +7,49 @@ export function useImagePreloader() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Glob all jpg/png frames inside assets/frames or public/assets/frames
-    const frameModules = import.meta.glob('/public/assets/Frames/ezgif-frame-*.{jpg,jpeg,png}', { eager: true, as: 'url' });
-    
+    // Find all frames inside /public/assets/Frames/
+    const frameModules = import.meta.glob(
+      '/public/assets/Frames/ezgif-frame-*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}'
+    );
+
     // Sort keys alphabetically so ezgif-frame-001 comes before ezgif-frame-002
     const sortedKeys = Object.keys(frameModules).sort();
     const totalFrames = sortedKeys.length;
 
     if (totalFrames === 0) {
-      console.error("Vite Glob: No frames detected! Check that your frames are inside /public/assets/Frames/.");
+      console.error('Vite Glob: No frames detected in /public/assets/Frames/');
+      setIsLoaded(true);
       return;
     }
 
     let loadedCount = 0;
-    const imgArray = [];
+    const imgArray = new Array(totalFrames);
+
+    const checkComplete = () => {
+      loadedCount++;
+      setProgress(Math.round((loadedCount / totalFrames) * 100));
+      if (loadedCount === totalFrames) {
+        setImages(imgArray.filter(Boolean));
+        setIsLoaded(true);
+      }
+    };
 
     sortedKeys.forEach((key, index) => {
       const img = new Image();
-      img.src = frameModules[key];
+      // Strip '/public' from the start of the path so Vercel serves '/assets/Frames/...'
+      const publicUrl = key.replace(/^\/public/, '');
 
       img.onload = () => {
-        loadedCount++;
-        setProgress(Math.round((loadedCount / totalFrames) * 100));
-        if (loadedCount === totalFrames) {
-          setImages(imgArray);
-          setIsLoaded(true);
-        }
+        imgArray[index] = img;
+        checkComplete();
       };
 
       img.onerror = () => {
-        console.error(`Failed to load asset from glob at: ${key}`);
-        loadedCount++;
-        if (loadedCount === totalFrames) {
-          setImages(imgArray);
-          setIsLoaded(true);
-        }
+        console.error(`Failed to load frame at: ${publicUrl}`);
+        checkComplete();
       };
 
-      imgArray[index] = img;
+      img.src = publicUrl;
     });
   }, []);
 
