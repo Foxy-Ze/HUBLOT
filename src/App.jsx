@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
-import {useImagePreloader} from './hooks/useImagePreloader';
+import { useImagePreloader } from './hooks/useImagePreloader';
 import CustomCursor from './components/CustomCursor';
 import Navbar from './components/Navbar';
 import WatchCanvas from './components/WatchCanvas';
@@ -19,6 +19,7 @@ export default function App() {
   const { images, progress, isLoaded } = useImagePreloader();
   const lenisRef = useRef(null);
 
+  // 1. Smooth Scroll (Lenis) + GSAP Ticker Sync
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.4,
@@ -42,50 +43,105 @@ export default function App() {
     };
   }, []);
 
+  // 2. Global Mechanical Scroll Choreography (activates after preloader finishes)
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    let ctx;
+    // Wait 120ms so WatchCanvas finishes creating its scroll-pin spacer first
+    const timer = setTimeout(() => {
+      ctx = gsap.context(() => {
+        const sections = gsap.utils.toArray('section:not(:first-of-type)');
+
+        sections.forEach((section) => {
+          // A. Mechanical Snap-Up on Section Titles (H2 / H3)
+          const headings = section.querySelectorAll('h2, h3');
+          if (headings.length > 0) {
+            gsap.fromTo(
+              headings,
+              { y: 36, opacity: 0, clipPath: 'inset(0 0 100% 0)' },
+              {
+                y: 0,
+                opacity: 1,
+                clipPath: 'inset(0 0 0% 0)',
+                duration: 0.9,
+                ease: 'expo.out',
+                stagger: 0.08,
+                scrollTrigger: {
+                  trigger: section,
+                  start: 'top 82%',
+                  toggleActions: 'play none none reverse',
+                },
+              }
+            );
+          }
+
+          // B. Staggered Reveal for Bento Cards, Spec Cells & Stratum Rows
+          const cards = section.querySelectorAll('.group');
+          if (cards.length > 0) {
+            gsap.fromTo(
+              cards,
+              { y: 40, opacity: 0 },
+              {
+                y: 0,
+                opacity: 1,
+                duration: 0.75,
+                ease: 'power3.out',
+                stagger: 0.08,
+                clearProps: 'transform',
+                scrollTrigger: {
+                  trigger: section,
+                  start: 'top 76%',
+                  toggleActions: 'play none none reverse',
+                },
+              }
+            );
+          }
+        });
+
+        ScrollTrigger.refresh();
+      });
+    }, 120);
+
+    return () => {
+      clearTimeout(timer);
+      if (ctx) ctx.revert();
+    };
+  }, [isLoaded]);
+
   return (
-    <main className="bg-black text-white min-h-screen selection:bg-neutral-800">
+    <div className="bg-[#050505] min-h-screen text-white selection:bg-red-500 selection:text-white">
       <CustomCursor />
-      <Navbar />
 
-      {/* Preloader Screen */}
-      {!isLoaded && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black">
-          <div className="flex flex-col items-center gap-4">
-            <span className="font-mono text-xs tracking-[0.4em] text-neutral-400 uppercase">
-              Calibre HUB1201 // Initializing
-            </span>
-            <div className="w-56 h-[2px] bg-neutral-900 overflow-hidden relative border border-neutral-800">
-              <div
-                className="h-full bg-white transition-all duration-150 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <span className="font-mono text-[10px] tracking-widest text-neutral-600">
-              {progress}% BUFFERED
-            </span>
+      {!isLoaded ? (
+        <div className="fixed inset-0 z-50 bg-[#050505] flex flex-col items-center justify-center px-6">
+          <div className="w-2 h-2 rounded-full bg-red-500 animate-ping mb-6" />
+          <p className="font-mono text-[11px] tracking-[0.4em] text-neutral-300 uppercase mb-4">
+            CALIBRE HUB1201 // INITIALIZING
+          </p>
+          <div className="w-56 h-[1px] bg-neutral-900 overflow-hidden relative">
+            <div
+              className="h-full bg-red-600 transition-all duration-200 ease-out"
+              style={{ width: `${progress}%` }}
+            />
           </div>
+          <span className="font-mono text-[9px] tracking-[0.25em] text-neutral-600 uppercase mt-3">
+            {progress}% BUFFERED
+          </span>
         </div>
+      ) : (
+        <>
+          <Navbar />
+          <main>
+            <WatchCanvas images={images} />
+            <MacroCards />
+            <PowerReserve />
+            <SpecsGrid />
+            <LayerExplosion />
+          </main>
+          <FooterCTA />
+        </>
       )}
-
-      {/* SINGLE Hero Instance - Mounted only once images are ready */}
-      {isLoaded && <WatchCanvas images={images} />}
-
-      {/* Phase 02: Bento Macro Cards */}
-      <div id="specifications">
-        <MacroCards />
-      </div>
-
-      {/* Phase 03: Telemetry Power Reserve */}
-      <PowerReserve />
-
-      {/* Phase 04: Blueprint Specs */}
-      <SpecsGrid />
-
-      {/* Phase 05: 3D Layer Explosion */}
-      <LayerExplosion />
-
-      {/* Phase 06: VIP Acquisition Footer */}
-      <FooterCTA />
-    </main>
+    </div>
   );
 }
