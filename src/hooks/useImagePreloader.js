@@ -7,12 +7,10 @@ export function useImagePreloader() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Find all frames inside /public/assets/Frames/
     const frameModules = import.meta.glob(
       '/public/assets/Frames/ezgif-frame-*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}'
     );
 
-    // Sort keys alphabetically so ezgif-frame-001 comes before ezgif-frame-002
     const sortedKeys = Object.keys(frameModules).sort();
     const totalFrames = sortedKeys.length;
 
@@ -36,10 +34,17 @@ export function useImagePreloader() {
 
     sortedKeys.forEach((key, index) => {
       const img = new Image();
-      // Strip '/public' from the start of the path so Vercel serves '/assets/Frames/...'
       const publicUrl = key.replace(/^\/public/, '');
 
-      img.onload = () => {
+      img.onload = async () => {
+        try {
+          // Pre-decode image into GPU memory during loading screen to eliminate scroll stutter
+          if ('decode' in img) {
+            await img.decode();
+          }
+        } catch (e) {
+          // Ignore decode fallback errors
+        }
         imgArray[index] = img;
         checkComplete();
       };
