@@ -8,14 +8,14 @@ export function useImagePreloader() {
 
   useEffect(() => {
     // Glob all jpg/png frames inside assets/frames or public/assets/frames
-    const frameModules = import.meta.glob('/public/assets/frames/*.{jpg,jpeg,png}', { eager: true, as: 'url' });
+    const frameModules = import.meta.glob('/public/assets/Frames/ezgif-frame-*.{jpg,jpeg,png}', { eager: true, as: 'url' });
     
     // Sort keys alphabetically so ezgif-frame-001 comes before ezgif-frame-002
     const sortedKeys = Object.keys(frameModules).sort();
     const totalFrames = sortedKeys.length;
 
     if (totalFrames === 0) {
-      console.error("Vite Glob: No frames detected! Check that your frames are inside /public/assets/frames/.");
+      console.error("Vite Glob: No frames detected! Check that your frames are inside /public/assets/Frames/.");
       return;
     }
 
